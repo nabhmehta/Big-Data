@@ -1,0 +1,10 @@
+cd /home/training/training_materials/dev1/exercises/flume
+
+vi flume_conf_Nabh_Mehta.conf
+
+flume-ng agent --conf /etc/flume-ng/conf
+--conf-file /home/training/training_materials/dev1/exercises/flume/flume_conf_Nabh_Mehta.conf
+--name agent1
+-Dflume.root.logger=INFO,console
+
+./copy-move-weblogs.sh /flume_Nabh_Mehta/weblogs_spooldir
