@@ -1,0 +1,118 @@
+from pyspark.sql import SparkSession
+import pandas as pd
+from pyspark.ml.feature import OneHotEncoderEstimator, StringIndexer, VectorAssembler
+from pyspark.ml import pipeline
+
+df.head(5)
+df.select('age','balance','deposit').show(5)
+df.groupBy("age").count().sort("count",ascending=True).show()
+df.describe('balance').show()
+df.filter(df.age > 40).count()
+df.groupby('martial').agg({'balance':'mean'}).show()
+
+step 14
+pd.DataFrame(df.take(5), columns=df.columns).transpose()
+
+step 15
+numeric_features = [t[0] for t in df.dtypes if t[1] == 'int']
+df.select(numeric_features).describe().toPandas().transpose()
+
+step 16
+categoricalColumns = ['job','marital','education','default','housing','loan','contact','poutcome']
+stages = []
+for categoricalCol in categoricalColumns:
+  stringIndexer = StringIndexer(inputCol = categoricalCol, outputCol = categoricalCol + 'Index')
+  encoder = OneHotEncoderEstimator(inputCols=[stringIndexer.getOutputCol()],outputCols=[categoricalCol + "classVec"])
+  stages += [stringIndexer, encoder]
+label_stringIdx = StringIndexer(inputCol = 'deposit', outputCol = 'label')
+stages += [label_stringIdx]
+numericCols = ['age','balance','duration','campaign','pdays','previous']
+assemblerInputs = [c + "classVec" for c in categoricalColumns] + numericCols
+assembler = VectorAssembler(inputCols=assemblerInputs, outputCol="features")
+stages += [assembler]
+
+step 17
+pipeline = Pipeline(stages = stages)
+pipelineModel = pipeline.fit(df)
+df = pipelineModel.transform(df)
+df.printSchema()
+
+
+step 18
+pd.DataFrame(df.take(5), columns=df.columns).transpose()
+
+step 19
+train, test = df.randomSplit([0.8,0.2],seed = 99999)
+from pyspark.ml.clustering import KMeans
+import numpy as np
+cost = np.zeros(10)
+for k in range(2,10):
+kmeans = KMeans().setK(k),setSeed(1)
+model = kmeans.fit(train)
+cost[k] = model.computeCost(train)
+
+
+step 20
+import matplotlib.mlab as mlab
+import matplotlib.pyplot as plt
+import seaborn as sbs
+from matplotlib.ticker import MaxNLocator
+
+fig, ax = plt.subplots(1,1,figsize = (8,6))
+ax.plot(range(1,9),cost[2:10])
+ax.set_xlabel('k')
+ax.set_ylabel('cost')
+ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+display(fig)
+
+step 21
+from pyspark.ml.clustering import KMeans
+from pyspark.ml.evaluation import ClusteringEvaluator
+kmeans = KMeans().setK(8).setSeed(999)
+model = kmeans.fit(train)
+
+step 22
+evaluator = ClusteringEvaluator()
+predictions = model.transform(train)
+silhouette = evaluator.evaluate(predictions)
+print("Training Dataset Performance = " + str(silhouette))
+
+
+step 23
+centers = model.clusterCenters()
+print("Cluster Centers: ")
+for center in centers:
+print(center)
+
+step 24
+kmeans = KMeans().setK(8).setSeed(999)
+model = kmeans.fit(test)
+
+step 25
+evaluator = ClusteringEvaluator()
+predictions = model.transform(test)
+silhouette = evaluator.evaluate(predictions)
+print("Testing Dataset Performance =" + str(silhouette))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
