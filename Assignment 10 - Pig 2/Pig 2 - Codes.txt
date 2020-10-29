@@ -1,0 +1,67 @@
+flights = load 'Nabh_data/flights.csv' using PigStorage(',') as  \
+(YEAR:int, MONTH:int,DAY:int,DAY_OF_WEEK:int,AIRLINE:chararray,  \
+FLIGHT_NUMBER:chararray,TAIL_NUMBER:chararray,ORIGIN_AIRPORT:chararray,  \
+DESTINATION_AIRPORT:chararray,SCHEDULED_DEPARTURE:int,  \
+DEPARTURE_TIME:int, TAXI_OUT:int, WHEELS_OFF:int, SCHEDULED_TIME:int,  \
+ELAPSED_TIME:int, AIR_TIME:int, DISTANCE:int, WHEELS_ON:int,TAXI_IN:int,  \
+SCHEDULED_ARRIVAL:int,ARRIVAL_TIME:int,DIVERTED:chararray,  \
+CANCELLED:chararray,CANCELLATION_REASON:chararray,  \
+AIR_SYSTEM_DELAY:int,SECURITY_DELAY:int,AIRLINE_DELAY:int,  \
+LATE_AIRCRAFT_DELAY:int, WEATHER_DELAY:int);
+
+
+flights = load 'Nabh_data/flights.csv' using PigStorage(',') as  (YEAR:int, MONTH:int,DAY:int,DAY_OF_WEEK:int,AIRLINE:chararray,  FLIGHT_NUMBER:chararray,TAIL_NUMBER:chararray,ORIGIN_AIRPORT:chararray,  DESTINATION_AIRPORT:chararray,SCHEDULED_DEPARTURE:int,  DEPARTURE_TIME:int, TAXI_OUT:int, WHEELS_OFF:int, SCHEDULED_TIME:int,  ELAPSED_TIME:int, AIR_TIME:int, DISTANCE:int, WHEELS_ON:int,TAXI_IN:int,  SCHEDULED_ARRIVAL:int,ARRIVAL_TIME:int,DIVERTED:chararray,  CANCELLED:chararray,CANCELLATION_REASON:chararray,  AIR_SYSTEM_DELAY:int,SECURITY_DELAY:int,AIRLINE_DELAY:int,  LATE_AIRCRAFT_DELAY:int, WEATHER_DELAY:int);
+
+airports = load 'Nabh_data/airports.csv' using PigStorage(',') as  (IATA_CODE:chararray, AIRPORT:chararray, CITY:chararray, STATE:chararray,  COUNTRY:chararray, LATITUDE:chararray, LONGITUDE:chararray);
+
+step 8
+airports_filtered = FILTER airports BY STATE=='TX';
+
+result = foreach airports_filtered generate IATA_CODE,AIRPORT,CITY,STATE,COUNTRY;
+
+
+step 9
+updated_time = foreach flights generate YEAR,MONTH,DAY,DAY_OF_WEEK,AIRLINE,FLIGHT_NUMBER,TAIL_NUMBER,ORIGIN_AIRPORT,DESTINATION_AIRPORT,SCHEDULED_DEPARTURE,DEPARTURE_TIME,TAXI_OUT,WHEELS_OFF,SCHEDULED_TIME,ELAPSED_TIME,AIR_TIME,DISTANCE,WHEELS_ON,TAXI_IN,SCHEDULED_ARRIVAL,ARRIVAL_TIME,DIVERTED,CANCELLED,CANCELLATION_REASON,AIR_SYSTEM_DELAY,SECURITY_DELAY,AIRLINE_DELAY,LATE_AIRCRAFT_DELAY,WEATHER_DELAY,(DEPARTURE_TIME-SCHEDULED_DEPARTURE<-60?  DEPARTURE_TIME+2360:DEPARTURE_TIME) AS UPDATED_DEPART_TIME,  (ARRIVAL_TIME-SCHEDULED_ARRIVAL <-60? ARRIVAL_TIME+2360:ARRIVAL_TIME)  AS UPDATED_ARRIVAL_TIME;
+
+step 10
+flights_with_delay = foreach updated_time generate YEAR,MONTH,DAY,DAY_OF_WEEK,AIRLINE,FLIGHT_NUMBER,TAIL_NUMBER,ORIGIN_AIRPORT,DESTINATION_AIRPORT,SCHEDULED_DEPARTURE,DEPARTURE_TIME,TAXI_OUT,WHEELS_OFF,SCHEDULED_TIME,ELAPSED_TIME,AIR_TIME,DISTANCE,WHEELS_ON,TAXI_IN,SCHEDULED_ARRIVAL,ARRIVAL_TIME,DIVERTED,CANCELLED,CANCELLATION_REASON,AIR_SYSTEM_DELAY,SECURITY_DELAY,AIRLINE_DELAY,LATE_AIRCRAFT_DELAY,WEATHER_DELAY,(UPDATED_DEPART_TIME-SCHEDULED_DEPARTURE > 0? UPDATED_DEPART_TIME-SCHEDULED_DEPARTURE:0) AS DEPARTURE_DELAY,(UPDATED_ARRIVAL_TIME-SCHEDULED_ARRIVAL > 0? UPDATED_ARRIVAL_TIME-SCHEDULED_ARRIVAL:0) AS ARRIVAL_DELAY;
+
+
+step 11
+flight_with_delay_no_null = FILTER flights_with_delay BY DEPARTURE_DELAY is not null;
+
+step 12
+flight_airport_departure = GROUP flight_with_delay_no_null by (YEAR,MONTH,ORIGIN_AIRPORT,AIRLINE);
+
+step 13
+summary_data = foreach flight_airport_departure{ average_delay = AVG(flight_with_delay_no_null.DEPARTURE_DELAY);  limited = FILTER flight_with_delay_no_null BY DEPARTURE_DELAY > 20;  max = MAX(flight_with_delay_no_null.DEPARTURE_DELAY);  min = MIN(flight_with_delay_no_null.DEPARTURE_DELAY);  GENERATE FLATTEN(group), COUNT(limited.FLIGHT_NUMBER) as count, average_delay as AVG, min as MIN, max as MAX;}
+
+step 14
+joined_data = JOIN summary_data BY ORIGIN_AIRPORT, airports_filtered BY IATA_CODE USING 'replicated';
+
+describe joined_data;
+
+step 15
+final = ORDER joined_data BY ORIGIN_AIRPORT, YEAR, MONTH;
+
+dump final;
+
+step 16
+vi Nabh_Mehta_Pig.pig
+
+step 18
+pig -p DELAY=30 Nabh_Mehta_Pig.pig
+
+hdfs dfs -ls Nabh_data/
+
+step 19
+hdfs dfs -cat Nabh_data/30_final/part*
+
+
+
+
+
+
+
+
+
