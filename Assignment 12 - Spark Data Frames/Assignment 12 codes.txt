@@ -1,0 +1,171 @@
+pyspark --master local [2]
+
+from pyspark.sql import SQLContext
+sqlCtx = SQLContext(sc)
+
+accounts = sc.textFile("/loudacre_Nabh_Mehta/accounts/part-m-00000")
+
+print accounts.toDebugString()
+
+accounts = sc.textFile("/loudacre_Nabh_Mehta/accounts/part-m-00000",3)
+print accounts.toDebugString()
+
+
+step 6
+accountsByID = accounts.map(lambda line:line.split(',')).map(lambda values: (values[0], values[4] + ',' + values[3]))
+accountsByID.take(10)
+
+step 7
+accountsByIDDF = sqlCtx.createDataFrame(accountsByID)
+accountsByIDDF.show()
+
+step 8
+userreqs = sc.textFile("/loudacre_Nabh_Mehta/weblogs/*6").map(lambda line:line.split()).map(lambda words: (words[2],1)).reduceByKey(lambda v1,v2: v1+v2)
+
+Step 9
+userreqsDF = sqlCtx.createDataFrame(userreqs)
+userreqsDF.show()
+
+step 10
+inner_join = accountsByIDDF.join(userreqsDF, accountsByIDDF._1 == userreqsDF._1)
+inner_join.show()
+
+step 13
+mysql -utraining -ptraining loudacre -e"describe webpage"
+
+step 14
+mysql -utraining -ptraining loudacre -e"select * from webpage limit 5"
+
+step 15
+webpages=sqlCtx.load(source="jdbc",url="jdbc:mysql://localhost/loudacre?user=training&password=training",dbtable="webpage")
+
+webpages.printSchema()
+
+step 16
+assocfiles = webpages.select(webpages.web_page_num, webpages.associated_files)
+assocfiles.printSchema()
+
+step 17
+sqlrdd = assocfiles.map(lambda row: (row.web_page_num,row.associated_files))
+sqlrdd.take(10)
+
+Step 18
+sqlrdd2 = sqlrdd.flatMapValues(lambda filestring:filestring.split(','))
+sqlrdd2.take(10)
+
+step 19
+sqlrddDF = sqlCtx.createDataFrame(sqlrdd2)
+sqlrddDF.printSchema()
+
+Step 20
+finalDF = sqlrddDF.withColumnRenamed('_1','web_page_num').withColumnRenamed('_2','associated_file')
+finalDF.printSchema()
+
+step 21
+finalDF.save("/loudacre_Nabh_Mehta/webpage_files")
+
+e45c0dd0ecc447300be4bd951f900ce7
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
